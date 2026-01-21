@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CounterpointAI - Music Notation Editor</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-music"></i>
+                <span>CounterpointAI</span>
+            </div>
+            <div class="toolbar">
+                <button class="tool-btn" id="newBtn" title="New Score">
+                    <i class="fas fa-file"></i>
+                </button>
+                <button class="tool-btn" id="uploadBtn" title="Open File">
+                    <i class="fas fa-folder-open"></i>
+                </button>
+                <input type="file" id="fileInput" accept=".abc,.txt" hidden>
+                <button class="tool-btn" id="saveBtn" title="Save">
+                    <i class="fas fa-save"></i>
+                </button>
+                <div class="separator"></div>
+                <button class="tool-btn" id="undoBtn" title="Undo">
+                    <i class="fas fa-undo"></i>
+                </button>
+                <button class="tool-btn" id="redoBtn" title="Redo">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <div class="separator"></div>
+                <button class="tool-btn" id="zoomOutBtn" title="Zoom Out">
+                    <i class="fas fa-search-minus"></i>
+                </button>
+                <span class="zoom-level" id="zoomLevel">100%</span>
+                <button class="tool-btn" id="zoomInBtn" title="Zoom In">
+                    <i class="fas fa-search-plus"></i>
+                </button>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="settingsBtn" title="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Sidebar - Note Palette -->
+            <aside class="sidebar left-sidebar" id="leftSidebar">
+                <button class="sidebar-toggle" id="toggleLeftSidebar" title="Toggle Palette">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="sidebar-section">
+                    <h3>Notes</h3>
+                    <div class="note-palette">
+                        <button class="note-btn" data-duration="whole" title="Whole Note">𝅝</button>
+                        <button class="note-btn" data-duration="half" title="Half Note">𝅗𝅥</button>
+                        <button class="note-btn active" data-duration="quarter" title="Quarter Note">♩</button>
+                        <button class="note-btn" data-duration="eighth" title="Eighth Note">♪</button>
+                        <button class="note-btn" data-duration="sixteenth" title="Sixteenth Note">𝅘𝅥𝅯</button>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>Rests</h3>
+                    <div class="rest-palette">
+                        <button class="rest-btn" data-duration="whole" title="Whole Rest">𝄻</button>
+                        <button class="rest-btn" data-duration="half" title="Half Rest">𝄼</button>
+                        <button class="rest-btn" data-duration="quarter" title="Quarter Rest">𝄽</button>
+                        <button class="rest-btn" data-duration="eighth" title="Eighth Rest">𝄾</button>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>Accidentals</h3>
+                    <div class="accidental-palette">
+                        <button class="accidental-btn" data-accidental="sharp" title="Sharp">♯</button>
+                        <button class="accidental-btn" data-accidental="flat" title="Flat">♭</button>
+                        <button class="accidental-btn" data-accidental="natural" title="Natural">♮</button>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>Articulations</h3>
+                    <div class="articulation-palette">
+                        <button class="articulation-btn" data-articulation="staccato" title="Staccato">.</button>
+                        <button class="articulation-btn" data-articulation="accent" title="Accent">></button>
+                        <button class="articulation-btn" data-articulation="fermata" title="Fermata">𝄐</button>
+                        <button class="articulation-btn" data-articulation="tie" title="Tie">⁀</button>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>Clefs</h3>
+                    <div class="clef-palette">
+                        <button class="clef-btn" data-clef="treble" title="Treble Clef">𝄞</button>
+                        <button class="clef-btn" data-clef="bass" title="Bass Clef">𝄢</button>
+                        <button class="clef-btn" data-clef="alto" title="Alto Clef">𝄡</button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Score Area -->
+            <main class="score-area">
+                <div class="score-container" id="scoreContainer">
+                    <div class="empty-state" id="emptyState">
+                        <i class="fas fa-music fa-3x"></i>
+                        <h2>Welcome to CounterpointAI</h2>
+                        <p>Create a new score or open an existing file to get started</p>
+                        <div class="empty-state-actions">
+                            <button class="primary-btn" id="newScoreBtn">
+                                <i class="fas fa-plus"></i> New Score
+                            </button>
+                            <button class="secondary-btn" id="openScoreBtn">
+                                <i class="fas fa-folder-open"></i> Open File
+                            </button>
+                        </div>
+                    </div>
+                    <div class="score-content" id="scoreContent" style="display: none;">
+                        <div id="osmdContainer"></div>
+                    </div>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="playback-bar">
+                    <div class="playback-controls">
+                        <button class="playback-btn" id="rewindBtn" title="Rewind">
+                            <i class="fas fa-backward"></i>
+                        </button>
+                        <button class="playback-btn" id="stopBtn" title="Stop">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                        <button class="playback-btn primary" id="playBtn" title="Play">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="playback-btn" id="forwardBtn" title="Forward">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                        <button class="playback-btn" id="loopBtn" title="Loop">
+                            <i class="fas fa-repeat"></i>
+                        </button>
+                    </div>
+                    <div class="playback-timeline" style="display: none;">
+                        <span class="time-display" id="currentTime">0:00</span>
+                        <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="100" value="0">
+                        <span class="time-display" id="totalTime">0:00</span>
+                    </div>
+                    <div class="playback-options">
+                        <label class="tempo-label">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <input type="number" id="tempoInput" value="120" min="20" max="300">
+                            <span>BPM</span>
+                        </label>
+                        <div class="volume-control">
+                            <i class="fas fa-volume-up"></i>
+                            <input type="range" id="volumeSlider" min="0" max="100" value="80">
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar - AI Chat -->
+            <aside class="sidebar right-sidebar" id="chatSidebar">
+                <div class="chat-header">
+                    <h3><i class="fas fa-robot"></i> AI Assistant</h3>
+                    <button class="icon-btn" id="toggleChatBtn" title="Toggle Chat">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-controls" style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                        <label for="modelSelect" style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500;">AI Model:</label>
+                        <select id="modelSelect" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">
+                            <option value="anthropic/claude-opus-4.5">Claude Opus 4.5 (Latest)</option>
+                            <option value="anthropic/claude-3.5-sonnet-20241022">Claude 3.5 Sonnet (Oct 2024)</option>
+                            <option value="anthropic/claude-opus-4-20250514">Claude Opus 4 (May 2025)</option>
+                            <option value="openai/gpt-4o-2024-11-20">GPT-4o (Nov 2024)</option>
+                            <option value="openai/o1">OpenAI o1 (Reasoning)</option>
+                            <option value="openai/o1-mini">OpenAI o1-mini (Fast Reasoning)</option>
+                            <option value="google/gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                            <option value="google/gemini-exp-1206">Gemini Exp 1206</option>
+                            <option value="google/gemini-3-pro-preview">Gemini 3 Pro (Preview)</option>
+                            <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+                            <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+                            <option value="x-ai/grok-2-1212">Grok 2 (Dec 2024)</option>
+                            <option value="deepseek/deepseek-chat">DeepSeek Chat V3</option>
+                            <option value="mistralai/mistral-large-2411">Mistral Large 2 (Nov 2024)</option>
+                            <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
+                        </select>
+                    </div>
+                    <div class="api-key-section" id="apiKeySection">
+                        <p>Enter your OpenRouter API key to enable AI features:</p>
+                        <input type="password" id="apiKeyInput" placeholder="sk-or-...">
+                        <button class="primary-btn" id="saveApiKeyBtn">Save Key</button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-message assistant">
+                            <div class="message-content">
+                                <p>Hello! I'm your AI music assistant. I can help you:</p>
+                                <ul>
+                                    <li>Add new parts or voices</li>
+                                    <li>Modify existing melodies</li>
+                                    <li>Transpose sections</li>
+                                    <li>Generate harmonies</li>
+                                    <li>Suggest improvements</li>
+                                </ul>
+                                <p>Just describe what you'd like to do!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <textarea id="chatInput" placeholder="Describe what you want to change..." rows="2"></textarea>
+                        <button class="send-btn" id="sendBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- New Score Modal -->
+        <div class="modal" id="newScoreModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Score</h2>
+                    <button class="close-btn" id="closeNewScoreModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="scoreTitle">Title</label>
+                        <input type="text" id="scoreTitle" placeholder="Untitled Score">
+                    </div>
+                    <div class="form-group">
+                        <label for="composer">Composer</label>
+                        <input type="text" id="composer" placeholder="Anonymous">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="keySignature">Key Signature</label>
+                            <select id="keySignature">
+                                <option value="C">C Major</option>
+                                <option value="G">G Major</option>
+                                <option value="D">D Major</option>
+                                <option value="A">A Major</option>
+                                <option value="E">E Major</option>
+                                <option value="B">B Major</option>
+                                <option value="F">F Major</option>
+                                <option value="Bb">B♭ Major</option>
+                                <option value="Eb">E♭ Major</option>
+                                <option value="Ab">A♭ Major</option>
+                                <option value="Am">A Minor</option>
+                                <option value="Em">E Minor</option>
+                                <option value="Dm">D Minor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeSignature">Time Signature</label>
+                            <select id="timeSignature">
+                                <option value="4/4">4/4</option>
+                                <option value="3/4">3/4</option>
+                                <option value="2/4">2/4</option>
+                                <option value="6/8">6/8</option>
+                                <option value="2/2">2/2</option>
+                                <option value="3/8">3/8</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="measures">Number of Measures</label>
+                        <input type="number" id="measures" value="16" min="1" max="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Instruments</label>
+                        <div class="instrument-list" id="instrumentList">
+                            <div class="instrument-item">
+                                <select class="instrument-select">
+                                    <option value="piano">Piano</option>
+                                    <option value="violin">Violin</option>
+                                    <option value="viola">Viola</option>
+                                    <option value="cello">Cello</option>
+                                    <option value="flute">Flute</option>
+                                    <option value="clarinet">Clarinet</option>
+                                    <option value="trumpet">Trumpet</option>
+                                    <option value="voice">Voice</option>
+                                </select>
+                                <button class="remove-instrument-btn" title="Remove">&times;</button>
+                            </div>
+                        </div>
+                        <button class="add-instrument-btn" id="addInstrumentBtn">
+                            <i class="fas fa-plus"></i> Add Instrument
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="secondary-btn" id="cancelNewScore">Cancel</button>
+                    <button class="primary-btn" id="createScoreBtn">Create Score</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settingsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn" id="closeSettingsModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="themeSelect">Theme</label>
+                        <select id="themeSelect">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="soundfontSelect">Soundfont</label>
+                        <select id="soundfontSelect">
+                            <option value="FluidR3_GM">FluidR3 GM</option>
+                            <option value="MusyngKite">MusyngKite</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="autoSaveCheck" checked>
+                            Enable Auto-save
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="followCursorCheck" checked>
+                            Follow cursor during playback
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="primary-btn" id="saveSettingsBtn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        console.log('='.repeat(80));
+        console.log('CounterpointAI Starting...');
+        console.log('='.repeat(80));
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-basic-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js"></script>
+    <script>
+        console.log('Libraries loaded');
+        console.log('- abcjs:', typeof ABCJS !== 'undefined' ? '✓' : '✗');
+        console.log('- Tone.js:', typeof Tone !== 'undefined' ? '✓' : '✗');
+    </script>
+    <script src="js/abc-score-editor.js"></script>
+    <script src="js/abc-playback.js"></script>
+    <script src="js/abc-ai-assistant.js"></script>
+    <script>
+        console.log('Classes loaded');
+        console.log('- MusicXMLGenerator:', typeof MusicXMLGenerator !== 'undefined' ? '✓' : '✗');
+        console.log('- ScoreEditor:', typeof ScoreEditor !== 'undefined' ? '✓' : '✗');
+        console.log('- PlaybackEngine:', typeof PlaybackEngine !== 'undefined' ? '✓' : '✗');
+        console.log('- AIAssistant:', typeof AIAssistant !== 'undefined' ? '✓' : '✗');
+    </script>
+    <script src="js/app.js"></script>
+    <script>
+        console.log('App script loaded');
+        console.log('- App class:', typeof App !== 'undefined' ? '✓' : '✗');
+        console.log('='.repeat(80));
+    </script>
+</body>
+</html>
