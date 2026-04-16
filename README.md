@@ -17,6 +17,7 @@ A MuseScore-like web-based music notation editor with AI-powered composition ass
 
 - Node.js (v14 or higher)
 - npm
+- Audiveris CLI (required for PDF score ingestion)
 
 ### Installation
 
@@ -31,22 +32,38 @@ cd CounterpointAI
 npm install
 ```
 
-3. Start the server:
+3. Create your local environment file:
+```bash
+cp .env.example .env
+```
+
+4. Edit `.env` and set `OPENROUTER_API_KEY` to your OpenRouter key.
+
+5. Start the server:
 ```bash
 npm start
 ```
 
-4. Open your browser and navigate to `http://localhost:3000`
+6. Open your browser and navigate to `http://localhost:3000`
 
 ### Configuration
 
-#### OpenRouter API Key
+#### Environment Variables
 
-To use the AI assistant features, you'll need an OpenRouter API key:
+The app is configured via `.env` (see `.env.example`).
 
-1. Sign up at [OpenRouter](https://openrouter.ai/)
-2. Create an API key
-3. Enter your API key in the chat panel of the application
+Required:
+- `OPENROUTER_API_KEY`: your OpenRouter API key
+
+Optional (defaults shown in `.env.example`):
+- `PORT`
+- `JSON_BODY_LIMIT`
+- `OPENROUTER_BASE_URL`
+- `OPENROUTER_DEFAULT_MODEL`
+- `OPENROUTER_HTTP_REFERER`
+- `OPENROUTER_X_TITLE`
+- `AUDIVERIS_BIN`
+- `PDF_CONVERSION_TIMEOUT_MS`
 
 Supported models:
 - Claude 3.5 Sonnet (default)
@@ -60,7 +77,9 @@ Supported models:
 ### Opening Files
 
 - Click the folder icon or press `Ctrl+O` to open a file
-- Supported formats: .mscz, .musicxml, .mxl, .xml
+- Supported frontend formats: `.abc`, `.txt`, `.pdf`
+- PDF ingestion uses Audiveris for OMR, then converts generated MusicXML to ABC before loading.
+- OMR accuracy varies by score quality; imported results may require manual cleanup.
 
 ### Creating a New Score
 
@@ -90,6 +109,8 @@ Supported models:
 ### AI Assistant
 
 Chat with the AI to modify your music:
+
+The API key is read from server-side `.env`. You only pick the model in the UI.
 
 **Example prompts:**
 - "Add a bass line to accompany the melody"

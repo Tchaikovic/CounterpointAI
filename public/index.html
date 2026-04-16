@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CounterpointAI - Music Notation Editor</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/abcjs-audio.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -19,10 +20,10 @@
                 <button class="tool-btn" id="newBtn" title="New Score">
                     <i class="fas fa-file"></i>
                 </button>
-                <button class="tool-btn" id="uploadBtn" title="Open File">
+                <button class="tool-btn" id="uploadBtn" title="Open ABC/TXT/PDF File">
                     <i class="fas fa-folder-open"></i>
                 </button>
-                <input type="file" id="fileInput" accept=".abc,.txt" hidden>
+                <input type="file" id="fileInput" accept=".abc,.txt,.pdf" hidden>
                 <button class="tool-btn" id="saveBtn" title="Save">
                     <i class="fas fa-save"></i>
                 </button>
@@ -105,10 +106,21 @@
             <!-- Score Area -->
             <main class="score-area">
                 <div class="score-container" id="scoreContainer">
+                    <div class="import-status-panel hidden" id="importStatusPanel">
+                        <div class="import-status-header">
+                            <div>
+                                <h3>File Import</h3>
+                                <p id="importStatusFile">No active import</p>
+                            </div>
+                            <span class="import-status-badge" id="importStatusBadge">Idle</span>
+                        </div>
+                        <p class="import-status-message" id="importStatusMessage">Choose a file to begin.</p>
+                        <p class="import-status-detail" id="importStatusDetail"></p>
+                    </div>
                     <div class="empty-state" id="emptyState">
                         <i class="fas fa-music fa-3x"></i>
                         <h2>Welcome to CounterpointAI</h2>
-                        <p>Create a new score or open an existing file to get started</p>
+                        <p>Create a blank score from settings, or open an existing file (.abc/.txt/.pdf)</p>
                         <div class="empty-state-actions">
                             <button class="primary-btn" id="newScoreBtn">
                                 <i class="fas fa-plus"></i> New Score
@@ -170,31 +182,6 @@
                     </button>
                 </div>
                 <div class="chat-container">
-                    <div class="chat-controls" style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
-                        <label for="modelSelect" style="display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500;">AI Model:</label>
-                        <select id="modelSelect" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);">
-                            <option value="anthropic/claude-opus-4.5">Claude Opus 4.5 (Latest)</option>
-                            <option value="anthropic/claude-3.5-sonnet-20241022">Claude 3.5 Sonnet (Oct 2024)</option>
-                            <option value="anthropic/claude-opus-4-20250514">Claude Opus 4 (May 2025)</option>
-                            <option value="openai/gpt-4o-2024-11-20">GPT-4o (Nov 2024)</option>
-                            <option value="openai/o1">OpenAI o1 (Reasoning)</option>
-                            <option value="openai/o1-mini">OpenAI o1-mini (Fast Reasoning)</option>
-                            <option value="google/gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
-                            <option value="google/gemini-exp-1206">Gemini Exp 1206</option>
-                            <option value="google/gemini-3-pro-preview">Gemini 3 Pro (Preview)</option>
-                            <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
-                            <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
-                            <option value="x-ai/grok-2-1212">Grok 2 (Dec 2024)</option>
-                            <option value="deepseek/deepseek-chat">DeepSeek Chat V3</option>
-                            <option value="mistralai/mistral-large-2411">Mistral Large 2 (Nov 2024)</option>
-                            <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
-                        </select>
-                    </div>
-                    <div class="api-key-section" id="apiKeySection">
-                        <p>Enter your OpenRouter API key to enable AI features:</p>
-                        <input type="password" id="apiKeyInput" placeholder="sk-or-...">
-                        <button class="primary-btn" id="saveApiKeyBtn">Save Key</button>
-                    </div>
                     <div class="chat-messages" id="chatMessages">
                         <div class="chat-message assistant">
                             <div class="message-content">
@@ -228,6 +215,9 @@
                     <button class="close-btn" id="closeNewScoreModal">&times;</button>
                 </div>
                 <div class="modal-body">
+                    <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.9rem;">
+                        This creates a new blank score using the options below. Use "Open File" to load an existing .abc/.txt or ingest a PDF with Audiveris.
+                    </p>
                     <div class="form-group">
                         <label for="scoreTitle">Title</label>
                         <input type="text" id="scoreTitle" placeholder="Untitled Score">

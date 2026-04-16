@@ -122,7 +122,7 @@ K:C
                 viewportHorizontal: true,
                 viewportVertical: true,
                 scale: 1.0,
-                staffwidth: 800,
+                staffwidth: 1100,
                 add_classes: true,
                 // Filter out decoration warnings
                 warnings: (warning) => {

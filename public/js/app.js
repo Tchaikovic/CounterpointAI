@@ -6,6 +6,7 @@ class App {
         this.scoreEditor = null;
         this.playbackEngine = null;
         this.aiAssistant = null;
+        this.pdfStatusPollMs = 1000;
         
         this.init();
     }
@@ -45,8 +46,8 @@ class App {
             this.reinitializePlayback();
         });
 
-        // Check for saved API key
-        this.checkApiKey();
+        // Load saved model preference
+        this.loadModelPreference();
 
         // Load theme preference
         this.loadTheme();
@@ -191,12 +192,9 @@ class App {
     setupChatHandlers() {
         const toggleBtn = document.getElementById('toggleChatBtn');
         const chatSidebar = document.getElementById('chatSidebar');
-        const apiKeyInput = document.getElementById('apiKeyInput');
         const modelSelect = document.getElementById('modelSelect');
-        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
-        const chatMessages = document.getElementById('chatMessages');
 
         // Toggle chat panel
         toggleBtn?.addEventListener('click', () => {
@@ -209,40 +207,18 @@ class App {
             }
         });
 
-        // Save API key and model
-        saveApiKeyBtn?.addEventListener('click', () => {
-            const key = apiKeyInput.value.trim();
-            const model = modelSelect.value;
-            
-            if (key) {
-                this.aiAssistant.setApiKey(key);
-                this.aiAssistant.setModel(model);
-                const modelName = modelSelect.options[modelSelect.selectedIndex].text;
-                this.showToast(`Settings saved - Model: ${modelName}`);
-                document.getElementById('apiKeySection').style.display = 'none';
-            }
-        });
-        
         // Update model on change
         modelSelect?.addEventListener('change', () => {
             const model = modelSelect.value;
-            const key = this.aiAssistant.getApiKey();
-            if (key) {
-                this.aiAssistant.setModel(model);
-                const modelName = modelSelect.options[modelSelect.selectedIndex].text;
-                this.showToast(`Model changed to: ${modelName}`);
-            }
+            this.aiAssistant.setModel(model);
+            const modelName = modelSelect.options[modelSelect.selectedIndex].text;
+            this.showToast(`Model changed to: ${modelName}`);
         });
 
         // Send message
         const sendMessage = async () => {
             const message = chatInput.value.trim();
             if (!message) return;
-
-            if (!this.aiAssistant.isConfigured()) {
-                this.showToast('Please configure your API key first');
-                return;
-            }
 
             // Add user message to chat
             this.addChatMessage(message, 'user');
@@ -427,24 +403,153 @@ class App {
         }
     }
 
+    async wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    updateImportStatus({ visible = true, status = 'running', fileName = '', message = '', detail = '' }) {
+        const panel = document.getElementById('importStatusPanel');
+        const fileEl = document.getElementById('importStatusFile');
+        const badgeEl = document.getElementById('importStatusBadge');
+        const messageEl = document.getElementById('importStatusMessage');
+        const detailEl = document.getElementById('importStatusDetail');
+
+        if (!panel || !fileEl || !badgeEl || !messageEl || !detailEl) return;
+
+        panel.classList.toggle('hidden', !visible);
+        panel.classList.remove('running', 'completed', 'failed');
+
+        if (visible) {
+            panel.classList.add(status);
+        }
+
+        fileEl.textContent = fileName || 'No active import';
+        badgeEl.textContent = status === 'completed'
+            ? 'Completed'
+            : status === 'failed'
+                ? 'Failed'
+                : 'In Progress';
+        messageEl.textContent = message || 'Waiting for updates...';
+        detailEl.textContent = detail || '';
+    }
+
+    async startPdfImport(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/convert-pdf/start', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to start PDF conversion');
+        }
+
+        this.updateImportStatus({
+            status: 'running',
+            fileName: file.name,
+            message: result.message || 'PDF uploaded. Preparing conversion...'
+        });
+
+        return result.jobId;
+    }
+
+    async pollPdfImport(jobId, fileName) {
+        while (true) {
+            const response = await fetch(`/api/convert-pdf/${jobId}/status`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to fetch PDF conversion status');
+            }
+
+            this.updateImportStatus({
+                status: result.status,
+                fileName: result.fileName || fileName,
+                message: result.message || 'Processing PDF...',
+                detail: result.error
+                    ? result.error
+                    : result.sourceXmlPath
+                        ? `MusicXML: ${result.sourceXmlPath}`
+                        : ''
+            });
+
+            if (result.status === 'completed') {
+                return result;
+            }
+
+            if (result.status === 'failed') {
+                throw new Error(result.error || result.message || 'PDF conversion failed');
+            }
+
+            await this.wait(this.pdfStatusPollMs);
+        }
+    }
+
+    async fetchPdfImportResult(jobId) {
+        const response = await fetch(`/api/convert-pdf/${jobId}/result`);
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to fetch converted ABC');
+        }
+
+        if (!result.abc) {
+            throw new Error('PDF conversion completed, but no ABC output was returned');
+        }
+
+        return result;
+    }
+
     /**
-     * Open an ABC file
+     * Open an ABC/TXT file or ingest a PDF
      */
     async openFile(file) {
-        console.log('=== Starting ABC file load ===' );
+        console.log('=== Starting file load ===' );
         console.log('File:', file.name, 'Size:', file.size, 'Type:', file.type);
         
         try {
-            this.showLoading();
-            this.updateLoadingText(`Reading ${file.name}...`);
-            
-            // Read file as text
-            const text = await file.text();
-            console.log('ABC text loaded, length:', text.length);
-            
-            this.updateLoadingText('Loading ABC notation...');
-            this.scoreEditor.loadABC(text);
-            
+            const fileName = file.name.toLowerCase();
+            if (!fileName.endsWith('.abc') && !fileName.endsWith('.txt') && !fileName.endsWith('.pdf')) {
+                throw new Error('Unsupported format. Please open an .abc, .txt, or .pdf file.');
+            }
+
+            if (fileName.endsWith('.pdf')) {
+                this.updateImportStatus({
+                    visible: true,
+                    status: 'running',
+                    fileName: file.name,
+                    message: 'Uploading PDF...'
+                });
+
+                const jobId = await this.startPdfImport(file);
+                await this.pollPdfImport(jobId, file.name);
+                const result = await this.fetchPdfImportResult(jobId);
+
+                this.updateImportStatus({
+                    visible: true,
+                    status: 'running',
+                    fileName: file.name,
+                    message: 'Loading converted ABC notation...',
+                    detail: result.sourceXmlPath ? `MusicXML: ${result.sourceXmlPath}` : ''
+                });
+
+                this.scoreEditor.loadABC(result.abc);
+                console.log('✅ PDF converted and loaded as ABC');
+            } else {
+                this.showLoading();
+                this.updateLoadingText(`Reading ${file.name}...`);
+                
+                // Read file as text
+                const text = await file.text();
+                console.log('ABC text loaded, length:', text.length);
+                
+                this.updateLoadingText('Loading ABC notation...');
+                this.scoreEditor.loadABC(text);
+            }
+
             this.updateLoadingText('Initializing playback...');
             // Initialize playback with rendered score
             const { visualObj } = this.scoreEditor.getScoreData();
@@ -456,19 +561,42 @@ class App {
             }
             
             this.showScoreContent();
-            this.hideLoading();
-            this.showToast(`✓ Opened: ${file.name}`);
-            console.log('=== ABC file loaded successfully ===');
+            if (!fileName.endsWith('.pdf')) {
+                this.hideLoading();
+            }
+
+            if (fileName.endsWith('.pdf')) {
+                this.updateImportStatus({
+                    visible: true,
+                    status: 'completed',
+                    fileName: file.name,
+                    message: 'PDF OCR/import finished and the score was loaded.',
+                    detail: 'You can review the imported score and make manual corrections if needed.'
+                });
+                this.showToast(`✓ Imported PDF: ${file.name}`);
+            } else {
+                this.hideLoading();
+                this.showToast(`✓ Opened: ${file.name}`);
+            }
+            console.log('=== File loaded successfully ===');
         } catch (error) {
             this.hideLoading();
-            console.error('=== ERROR LOADING ABC FILE ===');
+            console.error('=== ERROR LOADING FILE ===');
             console.error('Error:', error);
             console.error('Stack:', error.stack);
             
             const errorMsg = error.message || 'Unknown error';
             this.showToast(`✗ Error: ${errorMsg}`, 'error');
-            
-            alert(`Failed to open: ${file.name}\n\nError: ${errorMsg}`);
+
+            if (file.name.toLowerCase().endsWith('.pdf')) {
+                this.updateImportStatus({
+                    visible: true,
+                    status: 'failed',
+                    fileName: file.name,
+                    message: 'PDF import failed.',
+                    detail: errorMsg
+                });
+            }
         }
     }
 
@@ -595,16 +723,12 @@ ${'z4 |'.repeat(measures - 1)} z4 |]`;
     }
 
     /**
-     * Check if API key is saved
+     * Load saved model preference
      */
-    checkApiKey() {
-        const apiKeySection = document.getElementById('apiKeySection');
-        const apiKeyInput = document.getElementById('apiKeyInput');
+    loadModelPreference() {
         const modelSelect = document.getElementById('modelSelect');
 
-        if (this.aiAssistant.isConfigured()) {
-            apiKeySection.style.display = 'none';
-            apiKeyInput.value = this.aiAssistant.getApiKey();
+        if (modelSelect) {
             modelSelect.value = this.aiAssistant.getModel();
         }
     }

@@ -3,8 +3,7 @@
  */
 class ABCAIAssistant {
     constructor() {
-        this.apiKey = localStorage.getItem('openrouter_api_key') || '';
-        this.model = localStorage.getItem('openrouter_model') || 'anthropic/claude-opus-4.5';
+        this.model = localStorage.getItem('openrouter_model') || 'anthropic/claude-3.5-sonnet-20241022';
         this.conversationHistory = [];
         this.scoreEditor = null;
         this.isProcessing = false;
@@ -67,26 +66,11 @@ Remember: Output ABC code ONLY. No explanations whatsoever.`;
     }
 
     /**
-     * Set API key
-     */
-    setApiKey(key) {
-        this.apiKey = key;
-        localStorage.setItem('openrouter_api_key', key);
-    }
-
-    /**
      * Set model
      */
     setModel(model) {
         this.model = model;
         localStorage.setItem('openrouter_model', model);
-    }
-
-    /**
-     * Get API key
-     */
-    getApiKey() {
-        return this.apiKey;
     }
 
     /**
@@ -100,17 +84,13 @@ Remember: Output ABC code ONLY. No explanations whatsoever.`;
      * Check if API key is configured
      */
     isConfigured() {
-        return this.apiKey && this.apiKey.length > 0;
+        return true;
     }
 
     /**
      * Send a message to the AI
      */
     async sendMessage(userMessage) {
-        if (!this.isConfigured()) {
-            throw new Error('API key not configured');
-        }
-
         if (this.isProcessing) {
             throw new Error('Already processing a request');
         }
@@ -151,7 +131,6 @@ Remember: Output ABC code ONLY. No explanations whatsoever.`;
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    apiKey: this.apiKey,
                     model: this.model,
                     messages: messages,
                     max_tokens: 8000  // Limit response to 8000 tokens for ABC notation

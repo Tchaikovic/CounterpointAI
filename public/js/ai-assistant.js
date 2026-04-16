@@ -3,7 +3,6 @@
  */
 class AIAssistant {
     constructor() {
-        this.apiKey = localStorage.getItem('openrouter_api_key') || '';
         this.model = localStorage.getItem('openrouter_model') || 'anthropic/claude-3.5-sonnet';
         this.conversationHistory = [];
         this.scoreEditor = null;
@@ -85,26 +84,11 @@ The user will see the new part added to their score immediately.`;
     }
 
     /**
-     * Set API key
-     */
-    setApiKey(key) {
-        this.apiKey = key;
-        localStorage.setItem('openrouter_api_key', key);
-    }
-
-    /**
      * Set model
      */
     setModel(model) {
         this.model = model;
         localStorage.setItem('openrouter_model', model);
-    }
-
-    /**
-     * Get API key
-     */
-    getApiKey() {
-        return this.apiKey;
     }
 
     /**
@@ -118,17 +102,13 @@ The user will see the new part added to their score immediately.`;
      * Check if API key is configured
      */
     isConfigured() {
-        return this.apiKey && this.apiKey.length > 0;
+        return true;
     }
 
     /**
      * Send a message to the AI
      */
     async sendMessage(userMessage) {
-        if (!this.isConfigured()) {
-            throw new Error('API key not configured');
-        }
-
         if (this.isProcessing) {
             throw new Error('Already processing a request');
         }
@@ -170,7 +150,6 @@ The user will see the new part added to their score immediately.`;
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    apiKey: this.apiKey,
                     model: this.model,
                     messages: messages
                 })

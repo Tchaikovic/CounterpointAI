@@ -204,6 +204,17 @@ class ABCParser {
             const numStr = this.readNumber(line, i);
             multiplier = parseInt(numStr);
             i += numStr.length;
+
+            if (i < line.length && line[i] === '/') {
+                i++;
+                if (i < line.length && /[0-9]/.test(line[i])) {
+                    const denomStr = this.readNumber(line, i);
+                    multiplier = multiplier / parseInt(denomStr);
+                    i += denomStr.length;
+                } else {
+                    multiplier = multiplier / 2;
+                }
+            }
         }
         // Check for division (/2, /4, etc.)
         else if (i < line.length && line[i] === '/') {
